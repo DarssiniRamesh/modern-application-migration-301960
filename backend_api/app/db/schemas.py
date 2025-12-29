@@ -30,6 +30,10 @@ class AdminLogin(BaseModel):
     username: constr(min_length=3, max_length=120) = Field(..., description="Admin username")
     password: constr(min_length=6, max_length=128) = Field(..., description="Password")
 
+class AdminRegister(BaseModel):
+    username: constr(min_length=3, max_length=120) = Field(..., description="Admin username")
+    password: constr(min_length=6, max_length=128) = Field(..., description="Password")
+
 
 # Users
 class AddressIn(BaseModel):
@@ -211,3 +215,37 @@ class AdminUserOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+class AdminUserUpdate(BaseModel):
+    username: Optional[constr(min_length=3, max_length=120)] = None
+
+
+# Contact Messages
+class MessageCreate(BaseModel):
+    name: constr(min_length=1, max_length=120) = Field(..., description="Name")
+    email: EmailStr = Field(..., description="Email address")
+    subject: Optional[constr(max_length=200)] = Field(None, description="Subject")
+    message: constr(min_length=1) = Field(..., description="Message content")
+
+class MessageOut(BaseModel):
+    id: int
+    name: str
+    email: str
+    subject: Optional[str]
+    message: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# Dashboard KPIs
+class DashboardKPIs(BaseModel):
+    total_users: int = Field(..., description="Total registered users")
+    total_orders: int = Field(..., description="Total orders placed")
+    total_revenue: Decimal = Field(..., description="Total revenue across all orders")
+    today_orders: int = Field(..., description="Orders placed today")
+    top_products_by_qty: List[dict] = Field([], description="Top products by quantity sold")
+    top_products_by_revenue: List[dict] = Field([], description="Top products by revenue")
+    low_stock_products: List[dict] = Field([], description="Products with low stock (<=10)")
+    recent_orders: List[OrderOut] = Field([], description="Recent orders")

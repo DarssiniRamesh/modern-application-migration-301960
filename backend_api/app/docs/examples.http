@@ -1,15 +1,49 @@
-### Register
-POST http://localhost:3002/auth/register
+### E-commerce API Examples
+### Base URL
+@base_url = http://localhost:3002
+
+### Variables (replace after login)
+@user_token = YOUR_USER_TOKEN_HERE
+@admin_token = YOUR_ADMIN_TOKEN_HERE
+
+### --------------------------------------------------
+### Public Endpoints
+### --------------------------------------------------
+
+### Health Check
+GET {{base_url}}/health
+
+### List Products (Public)
+GET {{base_url}}/products?page=1&size=12&sort=latest
+
+### Get Product by ID
+GET {{base_url}}/products/1
+
+### Get Product by Slug
+GET {{base_url}}/products/sample-product
+
+### Search Products
+GET {{base_url}}/products?q=laptop&category=1
+
+### List Categories
+GET {{base_url}}/products/categories
+
+### --------------------------------------------------
+### User Authentication
+### --------------------------------------------------
+
+### Register User
+POST {{base_url}}/auth/register
 Content-Type: application/json
 
 {
-  "name": "Alice",
+  "name": "Alice Smith",
   "email": "alice@example.com",
   "password": "password123"
 }
 
-### Login
-POST http://localhost:3002/auth/login
+### Login User
+POST {{base_url}}/auth/login
 Content-Type: application/json
 
 {
@@ -17,16 +51,47 @@ Content-Type: application/json
   "password": "password123"
 }
 
-### Me (replace TOKEN)
-GET http://localhost:3002/auth/me
-Authorization: Bearer TOKEN
+### Get Current User Profile
+GET {{base_url}}/auth/me
+Authorization: Bearer {{user_token}}
 
-### Products
-GET http://localhost:3002/products?page=1&size=12&sort=latest
+### --------------------------------------------------
+### User Profile Management
+### --------------------------------------------------
 
-### Add to cart
-POST http://localhost:3002/cart
-Authorization: Bearer TOKEN
+### Get My Profile
+GET {{base_url}}/users/me
+Authorization: Bearer {{user_token}}
+
+### Update My Profile
+PATCH {{base_url}}/users/me
+Authorization: Bearer {{user_token}}
+Content-Type: application/json
+
+{
+  "name": "Alice M. Smith",
+  "address": {
+    "line1": "123 Main Street",
+    "line2": "Apt 4B",
+    "city": "San Francisco",
+    "state": "CA",
+    "postal_code": "94102",
+    "country": "USA",
+    "phone": "+1-555-0100"
+  }
+}
+
+### --------------------------------------------------
+### Cart Operations
+### --------------------------------------------------
+
+### Get My Cart
+GET {{base_url}}/cart
+Authorization: Bearer {{user_token}}
+
+### Add Product to Cart
+POST {{base_url}}/cart
+Authorization: Bearer {{user_token}}
 Content-Type: application/json
 
 {
@@ -34,9 +99,55 @@ Content-Type: application/json
   "quantity": 2
 }
 
-### Checkout
-POST http://localhost:3002/orders/checkout
-Authorization: Bearer TOKEN
+### Update Cart Item Quantity
+PATCH {{base_url}}/cart/1
+Authorization: Bearer {{user_token}}
+Content-Type: application/json
+
+{
+  "quantity": 5
+}
+
+### Remove Item from Cart
+DELETE {{base_url}}/cart/1
+Authorization: Bearer {{user_token}}
+
+### Clear Entire Cart
+DELETE {{base_url}}/cart
+Authorization: Bearer {{user_token}}
+
+### --------------------------------------------------
+### Wishlist Operations
+### --------------------------------------------------
+
+### Get My Wishlist
+GET {{base_url}}/wishlist
+Authorization: Bearer {{user_token}}
+
+### Add Product to Wishlist
+POST {{base_url}}/wishlist
+Authorization: Bearer {{user_token}}
+Content-Type: application/json
+
+{
+  "product_id": 3
+}
+
+### Remove Product from Wishlist
+DELETE {{base_url}}/wishlist/3
+Authorization: Bearer {{user_token}}
+
+### Clear Entire Wishlist
+DELETE {{base_url}}/wishlist
+Authorization: Bearer {{user_token}}
+
+### --------------------------------------------------
+### Orders
+### --------------------------------------------------
+
+### Checkout and Create Order
+POST {{base_url}}/orders/checkout
+Authorization: Bearer {{user_token}}
 Content-Type: application/json
 
 {
@@ -46,6 +157,196 @@ Content-Type: application/json
     "city": "Metropolis",
     "state": "CA",
     "postal_code": "94000",
-    "country": "USA"
+    "country": "USA",
+    "phone": "+1-555-0199"
   }
 }
+
+### List My Orders
+GET {{base_url}}/orders
+Authorization: Bearer {{user_token}}
+
+### Get My Order Details
+GET {{base_url}}/orders/1
+Authorization: Bearer {{user_token}}
+
+### --------------------------------------------------
+### Contact Messages (Public)
+### --------------------------------------------------
+
+### Submit Contact Message
+POST {{base_url}}/contact/messages
+Content-Type: application/json
+
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "subject": "Product Inquiry",
+  "message": "I have a question about product availability and shipping options."
+}
+
+### --------------------------------------------------
+### Admin Authentication
+### --------------------------------------------------
+
+### Admin Login (use existing admin)
+POST {{base_url}}/auth/admin/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin123"
+}
+
+### Admin Register (create new admin)
+POST {{base_url}}/admin/auth/register
+Content-Type: application/json
+
+{
+  "username": "superadmin",
+  "password": "SecurePass123!"
+}
+
+### Admin Login (new endpoint)
+POST {{base_url}}/admin/auth/login
+Content-Type: application/json
+
+{
+  "username": "superadmin",
+  "password": "SecurePass123!"
+}
+
+### Get Admin Profile
+GET {{base_url}}/admin/me
+Authorization: Bearer {{admin_token}}
+
+### Update Admin Profile
+PUT {{base_url}}/admin/me
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "username": "newadminname"
+}
+
+### List All Admins
+GET {{base_url}}/admin/admins
+Authorization: Bearer {{admin_token}}
+
+### --------------------------------------------------
+### Admin Dashboard
+### --------------------------------------------------
+
+### Get Dashboard KPIs
+GET {{base_url}}/admin/dashboard
+Authorization: Bearer {{admin_token}}
+
+### --------------------------------------------------
+### Admin Products Management
+### --------------------------------------------------
+
+### Admin List All Products
+GET {{base_url}}/admin/products
+Authorization: Bearer {{admin_token}}
+
+### Admin Create Product
+POST {{base_url}}/admin/products
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Gaming Laptop Pro",
+  "slug": "gaming-laptop-pro",
+  "description": "High-performance gaming laptop with RTX graphics",
+  "price": 1299.99,
+  "stock": 25,
+  "category_id": 1,
+  "image_url": "/static/uploads/laptop.jpg",
+  "is_active": true
+}
+
+### Admin Get Product
+GET {{base_url}}/admin/products/1
+Authorization: Bearer {{admin_token}}
+
+### Admin Update Product
+PATCH {{base_url}}/admin/products/1
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "stock": 30,
+  "price": 1199.99
+}
+
+### Admin Delete Product
+DELETE {{base_url}}/admin/products/1
+Authorization: Bearer {{admin_token}}
+
+### --------------------------------------------------
+### Admin Users Management
+### --------------------------------------------------
+
+### Admin List All Users
+GET {{base_url}}/admin/users
+Authorization: Bearer {{admin_token}}
+
+### Admin Get User
+GET {{base_url}}/admin/users/1
+Authorization: Bearer {{admin_token}}
+
+### Admin Activate User
+PATCH {{base_url}}/admin/users/1?active=true
+Authorization: Bearer {{admin_token}}
+
+### Admin Deactivate User
+PATCH {{base_url}}/admin/users/1?active=false
+Authorization: Bearer {{admin_token}}
+
+### --------------------------------------------------
+### Admin Orders Management
+### --------------------------------------------------
+
+### Admin List All Orders
+GET {{base_url}}/admin/orders
+Authorization: Bearer {{admin_token}}
+
+### Admin Get Order
+GET {{base_url}}/admin/orders/1
+Authorization: Bearer {{admin_token}}
+
+### Admin Update Order Status
+PATCH {{base_url}}/admin/orders/1?status_value=shipped
+Authorization: Bearer {{admin_token}}
+
+### Admin Delete Order (only pending/cancelled)
+DELETE {{base_url}}/admin/orders/5
+Authorization: Bearer {{admin_token}}
+
+### --------------------------------------------------
+### Admin Contact Messages
+### --------------------------------------------------
+
+### List Contact Messages (Admin, Paginated)
+GET {{base_url}}/contact/admin/messages?page=1&size=20
+Authorization: Bearer {{admin_token}}
+
+### Delete Contact Message (Admin)
+DELETE {{base_url}}/contact/admin/messages/1
+Authorization: Bearer {{admin_token}}
+
+### --------------------------------------------------
+### Admin File Upload
+### --------------------------------------------------
+
+### Upload Image (Admin)
+POST {{base_url}}/admin/upload
+Authorization: Bearer {{admin_token}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="product.jpg"
+Content-Type: image/jpeg
+
+< ./product.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW--

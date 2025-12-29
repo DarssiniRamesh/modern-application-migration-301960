@@ -27,6 +27,7 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
+    requires_reset = Column(Boolean, default=False, nullable=False)
 
     addresses = relationship("Address", back_populates="user", cascade="all, delete-orphan")
     wishlist = relationship("Wishlist", back_populates="user", uselist=False, cascade="all, delete-orphan")
@@ -84,6 +85,7 @@ class Product(Base):
 
     __table_args__ = (
         Index("ix_products_title", "title"),
+        UniqueConstraint("title", name="uq_product_title"),
     )
 
     def __repr__(self) -> str:
@@ -221,6 +223,20 @@ class ProductImage(Base):
 
     def __repr__(self) -> str:
         return f"<ProductImage id={self.id} product_id={self.product_id}>"
+
+
+class Message(Base):
+    __tablename__ = "messages"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(120), nullable=False)
+    email = Column(String(255), nullable=False)
+    subject = Column(String(200), nullable=True)
+    message = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<Message id={self.id} from={self.email}>"
 
 
 Index("ix_cart_items_cart_id_product_id", CartItem.cart_id, CartItem.product_id, unique=True)

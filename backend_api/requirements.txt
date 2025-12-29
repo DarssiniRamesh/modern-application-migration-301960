@@ -47,3 +47,6 @@ passlib[bcrypt]==1.7.4
 SQLAlchemy==2.0.36
 greenlet==3.1.1
 # SQLite is provided via Python stdlib (sqlite3); no PyPI package needed
+
+# Optional: MySQL migration support
+pymysql==1.1.0

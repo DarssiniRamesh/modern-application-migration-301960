@@ -47,6 +47,23 @@ def add_to_wishlist(payload: WishlistItemIn, db: Session = Depends(get_db_dep), 
     return wishlist
 
 
+@router.delete("", status_code=204, summary="Clear entire wishlist")
+def clear_wishlist(db: Session = Depends(get_db_dep), user=Depends(get_current_user)):
+    """
+    Remove all items from the current user's wishlist.
+    
+    Idempotent operation - returns 204 No Content whether wishlist was empty or not.
+    """
+    wishlist = db.query(models.Wishlist).filter(models.Wishlist.user_id == user.id).first()
+    if wishlist:
+        # Delete all items
+        db.query(models.WishlistItem).filter(
+            models.WishlistItem.wishlist_id == wishlist.id
+        ).delete()
+        db.commit()
+    return None
+
+
 @router.delete("/{product_id}", response_model=WishlistOut, summary="Remove product from wishlist")
 def remove_from_wishlist(product_id: int, db: Session = Depends(get_db_dep), user=Depends(get_current_user)):
     """Remove a product from the wishlist."""

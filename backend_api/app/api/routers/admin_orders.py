@@ -32,3 +32,27 @@ def admin_update_order(order_id: int, status_value: str, db: Session = Depends(g
     db.commit()
     db.refresh(order)
     return order
+
+
+@router.delete("/{order_id}", status_code=204, summary="Admin delete order")
+def admin_delete_order(order_id: int, db: Session = Depends(get_db_dep), admin=Depends(get_current_admin)):
+    """
+    Delete an order by ID (admin only).
+    
+    Only allowed if order status is 'pending' or 'cancelled'.
+    Returns 409 Conflict if trying to delete a fulfilled/shipped order.
+    """
+    order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    # Only allow deletion of pending or cancelled orders
+    if order.status not in ["pending", "cancelled"]:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Cannot delete order with status '{order.status}'. Only 'pending' or 'cancelled' orders can be deleted."
+        )
+    
+    db.delete(order)
+    db.commit()
+    return None

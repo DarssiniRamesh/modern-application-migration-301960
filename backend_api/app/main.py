@@ -27,6 +27,9 @@ from app.api.routers import (
     admin_products as admin_products_router,
     admin_users as admin_users_router,
     admin_orders as admin_orders_router,
+    admin_auth as admin_auth_router,
+    admin_dashboard as admin_dashboard_router,
+    contact as contact_router,
     upload as upload_router,
     health as health_router,
 )
@@ -104,6 +107,9 @@ def create_app() -> FastAPI:
     app.include_router(cart_router.router, prefix="/cart", tags=["Cart"])
     app.include_router(wishlist_router.router, prefix="/wishlist", tags=["Wishlist"])
     app.include_router(orders_router.router, prefix="/orders", tags=["Orders"])
+    app.include_router(contact_router.router, prefix="/contact", tags=["Contact"])
+    app.include_router(admin_auth_router.router, prefix="/admin", tags=["Admin Auth"])
+    app.include_router(admin_dashboard_router.router, prefix="/admin", tags=["Admin Dashboard"])
     app.include_router(admin_products_router.router, prefix="/admin/products", tags=["Admin Products"])
     app.include_router(admin_users_router.router, prefix="/admin/users", tags=["Admin Users"])
     app.include_router(admin_orders_router.router, prefix="/admin/orders", tags=["Admin Orders"])
