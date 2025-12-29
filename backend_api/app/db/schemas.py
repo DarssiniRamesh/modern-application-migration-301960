@@ -278,3 +278,32 @@ class MessageOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# PUBLIC_INTERFACE
+class DashboardKPIs(BaseModel):
+    """Admin dashboard KPIs and aggregates.
+
+    Includes:
+    - total_users: Total registered users
+    - total_orders: Total orders across all time
+    - total_revenue: Total revenue across all orders (Decimal compatible; serialized as string)
+    - today_orders: Number of orders placed today (UTC)
+    - top_products_by_qty: Top products by quantity sold (list of dicts)
+    - top_products_by_revenue: Top products by revenue (list of dicts)
+    - low_stock_products: Products with low stock (<=10 units) (list of dicts)
+    - recent_orders: Recent orders rendered as OrderOut
+    """
+    total_users: int = Field(..., description="Total registered users")
+    total_orders: int = Field(..., description="Total orders placed")
+    total_revenue: Decimal = Field(..., description="Total revenue across all orders")
+    today_orders: int = Field(..., description="Orders placed today")
+
+    # Using plain dicts for product aggregates to keep payload flexible
+    top_products_by_qty: List[dict] = Field(default_factory=list, description="Top products by quantity sold")
+    top_products_by_revenue: List[dict] = Field(default_factory=list, description="Top products by revenue")
+    low_stock_products: List[dict] = Field(default_factory=list, description="Products with low stock (<=10)")
+    recent_orders: List["OrderOut"] = Field(default_factory=list, description="Recent orders")
+
+    class Config:
+        from_attributes = True
