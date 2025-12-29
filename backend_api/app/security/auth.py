@@ -11,13 +11,17 @@ from app.core.config import settings
 from app.db.database import get_db
 from app.db import models
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Use PBKDF2-SHA256 to avoid environment-specific bcrypt backend issues.
+# bcrypt can raise runtime errors in some environments due to binary backend
+# compatibility and 72-byte password limits during internal checks. PBKDF2-SHA256
+# is pure Python via passlib, widely supported, and sufficient for this demo app.
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
 # PUBLIC_INTERFACE
 def get_password_hash(password: str) -> str:
-    """Hash a password using bcrypt."""
+    """Hash a password using PBKDF2-SHA256."""
     return pwd_context.hash(password)
 
 
