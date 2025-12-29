@@ -32,6 +32,7 @@ def _is_public_path(path: str, method_spec: Dict[str, Any]) -> bool:
       - /auth/admin/login
       - /products (list/detail)
       - /products/categories
+      - POST /contact/messages (public contact form submission)
     All others are considered protected and will have BearerAuth added.
 
     Note: Some protected routes may already carry explicit security in code;
@@ -53,6 +54,10 @@ def _is_public_path(path: str, method_spec: Dict[str, Any]) -> bool:
     # Products public endpoints
     if path_lower.startswith("/products"):
         # All GETs under /products are public in this app (list, detail, categories)
+        return True
+
+    # Public contact form submission
+    if path_lower == "/contact/messages":
         return True
 
     # Otherwise protected by default
