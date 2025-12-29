@@ -46,5 +46,4 @@ passlib[bcrypt]==1.7.4
 # ORM stack
 SQLAlchemy==2.0.36
 greenlet==3.1.1
-# Optional but commonly needed for SQLite URL parsing and engine behavior
-sqlite3-binary==0.0.1
+# SQLite is provided via Python stdlib (sqlite3); no PyPI package needed

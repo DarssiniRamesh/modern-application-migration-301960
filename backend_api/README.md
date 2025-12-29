@@ -20,7 +20,11 @@ Modernized backend for the PHP e-commerce app, implemented with FastAPI and SQLi
 
 2. Start the server (port 3002 typical in this environment):
 
+   # Option A (recommended):
    uvicorn app.main:app --host 0.0.0.0 --port 3002 --reload
+
+   # Option B (preview-safe; ensures deps before start):
+   RUN_SERVER=1 HOST=0.0.0.0 PORT=3002 python dev_bootstrap.py
 
    Notes:
    - Historical tools may attempt: uvicorn src.api.main:app. This is also supported because src/api/main.py re-exports app from app.main.
