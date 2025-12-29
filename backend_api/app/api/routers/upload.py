@@ -1,3 +1,12 @@
+"""
+Upload router for handling file uploads with validation.
+
+This module provides secure file upload endpoints with:
+- MIME type whitelisting (image/jpeg, image/png, image/webp)
+- File size limits (5MB maximum)
+- Safe filename generation using UUIDs
+- Admin-only access control
+"""
 import os
 from uuid import uuid4
 
@@ -9,9 +18,9 @@ from app.security.auth import get_current_admin
 
 router = APIRouter()
 
-# Allowed MIME types for image uploads
+# Allowed MIME types for image uploads (whitelist approach for security)
 ALLOWED_MIME_TYPES = {"image/jpeg", "image/png", "image/webp"}
-# Max file size: 5MB
+# Max file size: 5MB (matches PHP application behavior)
 MAX_FILE_SIZE = 5 * 1024 * 1024
 
 
@@ -32,7 +41,7 @@ def upload_image(file: UploadFile = File(...), admin=Depends(get_current_admin))
     - 413: File too large (>5MB)
     - 415: Unsupported media type (invalid MIME type)
     """
-    # Validate MIME type
+    # Step 1: Validate MIME type against whitelist (returns 415 if invalid)
     content_type = file.content_type
     if content_type not in ALLOWED_MIME_TYPES:
         raise HTTPException(
@@ -40,23 +49,24 @@ def upload_image(file: UploadFile = File(...), admin=Depends(get_current_admin))
             detail=f"Unsupported file type. Allowed: {', '.join(ALLOWED_MIME_TYPES)}"
         )
     
-    # Read file content
+    # Step 2: Read file content into memory for size validation
     content = file.file.read()
     
-    # Validate file size
+    # Step 3: Validate file size (returns 413 if too large)
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=f"File too large. Maximum size: {MAX_FILE_SIZE / (1024*1024)}MB"
         )
     
-    # Sanitize filename and generate new name
+    # Step 4: Safe filename handling - extract extension from original filename
     filename = file.filename or "upload.bin"
     ext = os.path.splitext(filename)[1].lower()
     
-    # Ensure extension matches content type
+    # Step 5: Ensure extension matches content type or derive from MIME type
+    # This prevents filename spoofing attacks
     if ext not in [".jpg", ".jpeg", ".png", ".webp"]:
-        # Fallback to extension based on MIME type
+        # Fallback to extension based on validated MIME type
         mime_to_ext = {
             "image/jpeg": ".jpg",
             "image/png": ".png",
@@ -64,12 +74,13 @@ def upload_image(file: UploadFile = File(...), admin=Depends(get_current_admin))
         }
         ext = mime_to_ext.get(content_type, ".jpg")
     
-    # Generate safe unique filename
+    # Step 6: Generate safe unique filename using UUID (prevents path traversal and collisions)
     safe_name = f"{uuid4().hex}{ext}"
     dest_path = settings.UPLOADS_DIR / safe_name
     
-    # Write file
+    # Step 7: Write validated file to disk
     with open(dest_path, "wb") as f:
         f.write(content)
     
+    # Return public URL for accessing the uploaded file
     return {"url": f"/static/uploads/{safe_name}"}
