@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
 from app.db.init_db import init_db
-from app.docs.openapi_overrides import openapi_tags
+from app.docs.openapi_overrides import openapi_tags, build_custom_openapi
 from app.api.routers import (
     auth as auth_router,
     users as users_router,
@@ -113,6 +113,9 @@ def create_app() -> FastAPI:
     async def on_startup():
         # Initialize database and seed idempotently
         init_db()
+
+    # Override OpenAPI schema to inject BearerAuth security scheme and per-route security
+    app.openapi = build_custom_openapi(app)  # type: ignore[assignment]
 
     return app
 

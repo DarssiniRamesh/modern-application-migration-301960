@@ -9,7 +9,7 @@ Modernized backend for the PHP e-commerce app, implemented with FastAPI and SQLi
 - Checkout with Orders and Order Items
 - Admin APIs for products, users, and orders
 - Image upload to local storage (served via /static/uploads)
-- OpenAPI docs at /docs and /redoc
+- OpenAPI docs at /docs and /redoc (with Bearer token auth)
 - SQLite database auto-initialized and seeded on startup
 
 ## Setup
@@ -33,6 +33,13 @@ uvicorn app.main:app --host 0.0.0.0 --port 3002
 
 Open Swagger UI:
 http://localhost:3002/docs
+
+Authorize in Swagger UI:
+1) Call POST /auth/login (for users) or POST /auth/admin/login (for admins)
+2) Copy access_token from the response
+3) Click the "Authorize" button in Swagger UI
+4) In the BearerAuth dialog, paste the access_token (no need to prefix with "Bearer ")
+5) Try protected endpoints (they show a lock icon); public endpoints (health, products, categories, register/login) work without auth
 
 Health check:
 http://localhost:3002/health
