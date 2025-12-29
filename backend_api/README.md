@@ -22,6 +22,10 @@ Modernized backend for the PHP e-commerce app, implemented with FastAPI and SQLi
 
    uvicorn app.main:app --host 0.0.0.0 --port 3002 --reload
 
+   Notes:
+   - Historical tools may attempt: uvicorn src.api.main:app. This is also supported because src/api/main.py re-exports app from app.main.
+   - Ensure your working directory is backend_api so the 'app' package is importable (PYTHONPATH rooted at backend_api).
+
 3. Open Swagger UI:
 
    http://localhost:3002/docs
