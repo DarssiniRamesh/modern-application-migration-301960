@@ -1,6 +1,7 @@
 from typing import Any, Callable, Dict, List
 
 from fastapi import FastAPI
+from fastapi.openapi.utils import get_openapi
 
 
 openapi_tags = [
@@ -55,21 +56,29 @@ def _is_public_path(path: str, method_spec: Dict[str, Any]) -> bool:
     return False
 
 
+# PUBLIC_INTERFACE
 def build_custom_openapi(app: FastAPI) -> Callable[[], Dict[str, Any]]:
     """
-    PUBLIC_INTERFACE
     Returns an app.openapi override that:
+      - Generates the base schema with FastAPI's get_openapi (avoids recursion)
       - Adds components.securitySchemes.BearerAuth (HTTP bearer, JWT format)
       - Applies security=[{"BearerAuth": []}] to protected endpoints
       - Leaves public endpoints without security
     """
 
     def custom_openapi() -> Dict[str, Any]:
-        if app.openapi_schema:
+        # Serve from cache if already computed
+        if getattr(app, "openapi_schema", None):
             return app.openapi_schema  # type: ignore[return-value]
 
-        # Generate base schema
-        openapi_schema: Dict[str, Any] = app.openapi()  # type: ignore[misc, assignment]
+        # Generate a base schema using FastAPI's utility to avoid recursion
+        openapi_schema: Dict[str, Any] = get_openapi(
+            title=app.title or "API",
+            version=app.version or "0.1.0",
+            description=app.description or "",
+            routes=app.routes,
+            tags=openapi_tags,
+        )
 
         # Ensure components dict exists
         components: Dict[str, Any] = openapi_schema.setdefault("components", {})
@@ -94,30 +103,27 @@ def build_custom_openapi(app: FastAPI) -> Callable[[], Dict[str, Any]]:
                 if not isinstance(method_spec, dict):
                     continue
 
-                # If method already declares security and is not using OAuth2PasswordBearer,
-                # we keep it, but also migrate OAuth2PasswordBearer to BearerAuth for clarity.
+                # If method already declares security and is using OAuth2PasswordBearer,
+                # replace it with BearerAuth. Preserve other entries.
                 if "security" in method_spec:
                     sec_list = method_spec.get("security") or []
                     new_sec_list: List[Dict[str, List[str]]] = []
                     for sec in sec_list:
                         if "OAuth2PasswordBearer" in sec:
-                            # Replace with BearerAuth
                             new_sec_list.append({"BearerAuth": []})
                         else:
-                            # Preserve any other declared security entries
                             new_sec_list.append(sec)
                     method_spec["security"] = new_sec_list
-                    continue
+                else:
+                    # If not explicitly marked, compute based on our public/protected rules
+                    if not _is_public_path(path, method_spec):
+                        method_spec["security"] = [{"BearerAuth": []}]
 
-                # If not explicitly marked, compute based on our public/protected rules
-                if not _is_public_path(path, method_spec):
-                    method_spec["security"] = [{"BearerAuth": []}]
-
-        # Remove OAuth2PasswordBearer definition if present to avoid multiple schemes showing
+        # Remove OAuth2PasswordBearer definition if present to avoid duplicating schemes
         if "OAuth2PasswordBearer" in security_schemes:
             security_schemes.pop("OAuth2PasswordBearer", None)
 
-        # Cache it on app and return
+        # Cache and return
         app.openapi_schema = openapi_schema  # type: ignore[attr-defined]
         return openapi_schema
 
