@@ -1,9 +1,16 @@
 from fastapi import APIRouter
 
+# PUBLIC_INTERFACE
 router = APIRouter()
 
-
-@router.get("/health", summary="Health Check", description="Return a simple health status response.")
+# PUBLIC_INTERFACE
+@router.get(
+    "/health",
+    tags=["Health"],
+    summary="Health Check",
+    description="Return a simple health status response.",
+    response_description="Successful Response",
+)
 def health_check():
-    """Health check endpoint to verify API is running."""
+    """Basic readiness/health endpoint for liveness probes and API docs."""
     return {"status": "ok"}

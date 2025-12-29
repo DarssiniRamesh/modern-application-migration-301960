@@ -1,3 +1,15 @@
+"""
+FastAPI application entrypoint.
+
+This module defines the FastAPI app with routers, CORS, static files, and OpenAPI metadata.
+It also includes a lightweight runtime guard to provide a clear message if
+dependencies like SQLAlchemy are not installed in the active environment.
+
+Entrypoints supported:
+- uvicorn app.main:app
+- uvicorn src.api.main:app (which imports this app)
+"""
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -18,6 +30,37 @@ from app.api.routers import (
     upload as upload_router,
     health as health_router,
 )
+
+# PUBLIC_INTERFACE
+def _guard_imports():
+    """Light guard to provide clearer errors if dependencies are missing."""
+    missing = []
+    try:
+        import sqlalchemy  # noqa: F401
+    except Exception:
+        missing.append("SQLAlchemy")
+
+    try:
+        import fastapi  # noqa: F401
+    except Exception:
+        missing.append("fastapi")
+    try:
+        import starlette  # noqa: F401
+    except Exception:
+        missing.append("starlette")
+
+    if missing:
+        deps = ", ".join(missing)
+        raise RuntimeError(
+            f"Missing required dependency(ies): {deps}. "
+            "Please install the backend requirements:\n"
+            "  pip install -r requirements.txt\n"
+            "Ensure you are using the correct virtual environment."
+        )
+
+
+_guard_imports()
+
 
 # PUBLIC_INTERFACE
 def create_app() -> FastAPI:
@@ -43,7 +86,8 @@ def create_app() -> FastAPI:
     # CORS - allow React app on port 3000 (and configurable origins)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.CORS_ALLOW_ORIGINS or ["http://localhost:3000", "http://127.0.0.1:3000"],
+        allow_origins=settings.CORS_ALLOW_ORIGINS
+        or ["http://localhost:3000", "http://127.0.0.1:3000"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -52,7 +96,7 @@ def create_app() -> FastAPI:
     # Static files for uploads
     app.mount("/static", StaticFiles(directory=settings.STATIC_DIR, html=False), name="static")
 
-    # Include routers with tags
+    # Include routers with tags and prefixes
     app.include_router(health_router.router, tags=["Health"])
     app.include_router(auth_router.router, prefix="/auth", tags=["Auth"])
     app.include_router(users_router.router, prefix="/users", tags=["Users"])

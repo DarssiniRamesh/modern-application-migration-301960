@@ -12,35 +12,42 @@ Modernized backend for the PHP e-commerce app, implemented with FastAPI and SQLi
 - OpenAPI docs at /docs and /redoc
 - SQLite database auto-initialized and seeded on startup
 
+## Setup
+
+Create/activate a virtual environment, then install dependencies:
+
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install --upgrade pip
+pip install -r requirements.txt
+
 ## Run locally
 
-1. Create a virtualenv and install deps:
+From the backend_api directory:
 
-   pip install -r requirements.txt
+# Option A (used by preview tooling)
+uvicorn src.api.main:app --host 0.0.0.0 --port 3002
 
-2. Start the server (port 3002 typical in this environment):
+# Option B (direct)
+uvicorn app.main:app --host 0.0.0.0 --port 3002
 
-   # Option A (recommended):
-   uvicorn app.main:app --host 0.0.0.0 --port 3002 --reload
+Open Swagger UI:
+http://localhost:3002/docs
 
-   # Option B (preview-safe; ensures deps before start):
-   RUN_SERVER=1 HOST=0.0.0.0 PORT=3002 python dev_bootstrap.py
+Health check:
+http://localhost:3002/health
 
-   Notes:
-   - Historical tools may attempt: uvicorn src.api.main:app. This is also supported because src/api/main.py re-exports app from app.main.
-   - Ensure your working directory is backend_api so the 'app' package is importable (PYTHONPATH rooted at backend_api).
+## Troubleshooting
 
-3. Open Swagger UI:
+If you see errors like ModuleNotFoundError: No module named 'sqlalchemy':
+- Ensure your virtual environment is active
+- Run: pip install -r requirements.txt
+- Confirm you are in the backend_api directory when launching uvicorn
+- Both entrypoints are supported:
+  - uvicorn src.api.main:app
+  - uvicorn app.main:app
 
-   http://localhost:3002/docs
-
-## API Quickstart
-
-- Register a user: POST /auth/register
-- Login: POST /auth/login -> copy access_token from response
-- Authorize: click "Authorize" in Swagger and paste: `Bearer <access_token>`
-- Explore protected endpoints (Cart, Wishlist, Orders, Users)
-- Admin login: POST /auth/admin/login (default seed: username=admin password=admin123)
+If imports fail with path issues, ensure the working directory is backend_api. The src/api/main.py adds backend_api to sys.path to assist preview environments.
 
 ## Environment variables
 Provide these via a .env file (example):
