@@ -3,7 +3,7 @@ MySQL → SQLite migration script.
 
 This script migrates data from the legacy PHP MySQL schema into the new SQLite database
 using the SQLAlchemy models. It handles:
-- Password hashing migration (marks users for password reset)
+- Password hashing migration (SHA-1→PBKDF2, marks users for password reset)
 - Cart/Wishlist normalization to new schema
 - Order addresses parsing into Address entity
 - Product images conversion (image_01/02/03 → ProductImage rows)
@@ -11,10 +11,13 @@ using the SQLAlchemy models. It handles:
 - Pricing conversion (int cents → Decimal)
 - Field renames (name→title, pid→product_id, method→payment_method, etc.)
 - Messages table import
+- All target models: User, AdminUser, Category, Product, ProductImage, Address, Order, OrderItem, Message, Cart, Wishlist
 
 Usage:
     python -m app.tools.mysql_to_sqlite --mode=dry-run
     python -m app.tools.mysql_to_sqlite --mode=execute --mysql-host=localhost --mysql-user=root --mysql-password=secret --mysql-db=ecom_db
+    
+    # CSV/JSON output available in migration_report.json and password_resets.csv
 """
 
 import argparse
@@ -103,15 +106,26 @@ def parse_order_address(address_str: str) -> Dict[str, str]:
     
     Example format: "123 Main St, Apt 4, New York, NY, 10001, USA, +1234567890"
     """
+    if not address_str:
+        return {
+            "line1": "Unknown",
+            "city": "Unknown",
+            "state": "Unknown",
+            "postal_code": "00000",
+            "country": "USA",
+            "phone": None,
+            "line2": None
+        }
+    
     parts = [p.strip() for p in address_str.split(',')]
     return {
-        "line1": parts[0] if len(parts) > 0 else "",
+        "line1": parts[0] if len(parts) > 0 and parts[0] else "Unknown",
         "line2": parts[1] if len(parts) > 1 and parts[1] else None,
-        "city": parts[2] if len(parts) > 2 else "",
-        "state": parts[3] if len(parts) > 3 else "",
-        "postal_code": parts[4] if len(parts) > 4 else "",
-        "country": parts[5] if len(parts) > 5 else "USA",
-        "phone": parts[6] if len(parts) > 6 else None,
+        "city": parts[2] if len(parts) > 2 and parts[2] else "Unknown",
+        "state": parts[3] if len(parts) > 3 and parts[3] else "Unknown",
+        "postal_code": parts[4] if len(parts) > 4 and parts[4] else "00000",
+        "country": parts[5] if len(parts) > 5 and parts[5] else "USA",
+        "phone": parts[6] if len(parts) > 6 and parts[6] else None,
     }
 
 
@@ -164,6 +178,21 @@ def run_migration(
     """
     Run the complete migration from MySQL to SQLite.
     
+    Migrates all tables including:
+    - Categories
+    - Products & ProductImage
+    - Users (with Cart, Wishlist initialization)
+    - AdminUser
+    - Address (parsed from orders)
+    - Orders & OrderItem
+    - Message
+    
+    Password Migration Strategy:
+    - SHA-1 hashes from MySQL are NOT portable to PBKDF2-SHA256
+    - Generate temporary passwords for all users/admins
+    - Mark all accounts for password reset (requires_reset=True for users)
+    - Output CSV with temp passwords for user communication
+    
     Args:
         mysql_host: MySQL server host
         mysql_port: MySQL server port
@@ -210,10 +239,10 @@ def run_migration(
             result = mysql_session.execute(text("SELECT id, name FROM categories"))
             for row in result:
                 cat_id, cat_name = row
-                slug = cat_name.lower().replace(' ', '-')
+                slug = cat_name.lower().replace(' ', '-').replace('&', 'and')[:160]
                 if not dry_run:
                     category = models.Category(id=cat_id, name=cat_name, slug=slug)
-                    sqlite_session.add(category)
+                    sqlite_session.merge(category)
                 categories_map[cat_id] = cat_name
             if not dry_run:
                 sqlite_session.commit()
@@ -222,18 +251,21 @@ def run_migration(
         except Exception as e:
             report.log_failure("categories", "migrate", str(e))
             print(f"  ✗ Failed: {e}")
+            if not dry_run:
+                sqlite_session.rollback()
         
         # Migrate Products
         print("Migrating products...")
         products_map = {}
+        image_count = 0
         try:
             result = mysql_session.execute(text(
                 "SELECT id, name, price, details, category_id, image_01, image_02, image_03 FROM products"
             ))
             for row in result:
                 prod_id, name, price_cents, details, cat_id, img1, img2, img3 = row
-                slug = name.lower().replace(' ', '-')[:200]
-                price_decimal = cents_to_decimal(price_cents) if isinstance(price_cents, int) else Decimal(str(price_cents))
+                slug = name.lower().replace(' ', '-').replace('&', 'and')[:200]
+                price_decimal = cents_to_decimal(price_cents) if isinstance(price_cents, int) else Decimal(str(price_cents or 0))
                 
                 if not dry_run:
                     product = models.Product(
@@ -247,24 +279,27 @@ def run_migration(
                         image_url=img1 if img1 else None,
                         is_active=True
                     )
-                    sqlite_session.add(product)
+                    sqlite_session.merge(product)
                     
                     # Add additional images as ProductImage rows
                     for img_url in [img2, img3]:
                         if img_url:
                             img = models.ProductImage(product_id=prod_id, url=img_url)
                             sqlite_session.add(img)
+                            image_count += 1
                 
                 products_map[prod_id] = name
             
             if not dry_run:
                 sqlite_session.commit()
             report.log_action("products", "migrated", len(products_map))
-            report.log_action("product_images", "migrated", len([1 for row in result if row[5] or row[6] or row[7]]))
-            print(f"  ✓ Migrated {len(products_map)} products")
+            report.log_action("product_images", "migrated", image_count)
+            print(f"  ✓ Migrated {len(products_map)} products with {image_count} additional images")
         except Exception as e:
             report.log_failure("products", "migrate", str(e))
             print(f"  ✗ Failed: {e}")
+            if not dry_run:
+                sqlite_session.rollback()
         
         # Migrate Users (with password reset strategy)
         print("Migrating users...")
@@ -275,6 +310,7 @@ def run_migration(
                 user_id, name, email, old_password_hash = row
                 
                 # Generate temporary password and mark for reset
+                # SHA-1 hashes cannot be converted to PBKDF2-SHA256
                 temp_password = secrets.token_urlsafe(16)
                 new_password_hash = get_password_hash(temp_password)
                 
@@ -287,12 +323,13 @@ def run_migration(
                         is_active=True,
                         requires_reset=True
                     )
-                    sqlite_session.add(user)
+                    sqlite_session.merge(user)
                     
                     # Create wishlist and cart
                     wishlist = models.Wishlist(user_id=user_id)
                     cart = models.Cart(user_id=user_id)
-                    sqlite_session.add_all([wishlist, cart])
+                    sqlite_session.merge(wishlist)
+                    sqlite_session.merge(cart)
                 
                 users_map[user_id] = email
                 report.log_password_reset(email, temp_password)
@@ -300,10 +337,14 @@ def run_migration(
             if not dry_run:
                 sqlite_session.commit()
             report.log_action("users", "migrated", len(users_map), "All users marked for password reset")
+            report.log_action("carts", "initialized", len(users_map))
+            report.log_action("wishlists", "initialized", len(users_map))
             print(f"  ✓ Migrated {len(users_map)} users (all require password reset)")
         except Exception as e:
             report.log_failure("users", "migrate", str(e))
             print(f"  ✗ Failed: {e}")
+            if not dry_run:
+                sqlite_session.rollback()
         
         # Migrate Admin Users
         print("Migrating admin users...")
@@ -322,7 +363,7 @@ def run_migration(
                         password_hash=new_password_hash,
                         is_active=True
                     )
-                    sqlite_session.add(admin)
+                    sqlite_session.merge(admin)
                 
                 report.log_password_reset(f"admin:{username}", temp_password)
                 admin_count += 1
@@ -334,6 +375,8 @@ def run_migration(
         except Exception as e:
             report.log_failure("admin_users", "migrate", str(e))
             print(f"  ✗ Failed: {e}")
+            if not dry_run:
+                sqlite_session.rollback()
         
         # Migrate Orders and OrderItems
         print("Migrating orders...")
@@ -343,12 +386,13 @@ def run_migration(
             ))
             order_count = 0
             order_item_count = 0
+            address_count = 0
             
             for row in result:
                 order_id, user_id, total_products, total_price, placed_on, payment_status, method, address = row
                 
                 # Parse address
-                addr_data = parse_order_address(address) if address else {}
+                addr_data = parse_order_address(address) if address else parse_order_address("")
                 
                 # Create address record
                 address_id = None
@@ -357,9 +401,10 @@ def run_migration(
                     sqlite_session.add(addr)
                     sqlite_session.flush()
                     address_id = addr.id
+                    address_count += 1
                 
-                # Convert price
-                total_decimal = cents_to_decimal(total_price) if isinstance(total_price, int) else Decimal(str(total_price))
+                # Convert price (handle both cents int and decimal)
+                total_decimal = cents_to_decimal(total_price) if isinstance(total_price, int) else Decimal(str(total_price or 0))
                 
                 # Create order
                 if not dry_run:
@@ -372,7 +417,7 @@ def run_migration(
                         shipping_address_id=address_id,
                         created_at=placed_on
                     )
-                    sqlite_session.add(order)
+                    sqlite_session.merge(order)
                     
                     # Parse and create order items
                     items = parse_order_products(total_products)
@@ -392,10 +437,13 @@ def run_migration(
                 sqlite_session.commit()
             report.log_action("orders", "migrated", order_count)
             report.log_action("order_items", "migrated", order_item_count)
-            print(f"  ✓ Migrated {order_count} orders with {order_item_count} items")
+            report.log_action("addresses", "created", address_count)
+            print(f"  ✓ Migrated {order_count} orders with {order_item_count} items and {address_count} addresses")
         except Exception as e:
             report.log_failure("orders", "migrate", str(e))
             print(f"  ✗ Failed: {e}")
+            if not dry_run:
+                sqlite_session.rollback()
         
         # Migrate Messages (if table exists)
         print("Migrating messages...")
@@ -412,7 +460,7 @@ def run_migration(
                         subject=subject,
                         message=message
                     )
-                    sqlite_session.add(msg)
+                    sqlite_session.merge(msg)
                 msg_count += 1
             
             if not dry_run:
