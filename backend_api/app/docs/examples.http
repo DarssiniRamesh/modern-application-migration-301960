@@ -137,7 +137,7 @@ Content-Type: application/json
 DELETE {{base_url}}/wishlist/3
 Authorization: Bearer {{user_token}}
 
-### Clear Entire Wishlist
+### Clear Entire Wishlist (idempotent; always 204)
 DELETE {{base_url}}/wishlist
 Authorization: Bearer {{user_token}}
 
@@ -190,7 +190,6 @@ Content-Type: application/json
 ### --------------------------------------------------
 
 ### Admin Register (create new admin)
-# Note: In production, this may require existing admin authentication
 POST {{base_url}}/admin/auth/register
 Content-Type: application/json
 
@@ -208,22 +207,11 @@ Content-Type: application/json
   "password": "admin123"
 }
 
-### Admin Login (with newly registered admin)
-POST {{base_url}}/admin/auth/login
-Content-Type: application/json
-
-{
-  "username": "superadmin",
-  "password": "SecurePass123!"
-}
-
 ### Get Current Admin Profile
-# Requires: Admin Bearer token
 GET {{base_url}}/admin/me
 Authorization: Bearer {{admin_token}}
 
 ### Update Current Admin Profile
-# Allows updating username (must be unique)
 PUT {{base_url}}/admin/me
 Authorization: Bearer {{admin_token}}
 Content-Type: application/json
@@ -233,7 +221,6 @@ Content-Type: application/json
 }
 
 ### List All Admin Users
-# Returns all admin accounts in the system
 GET {{base_url}}/admin/admins
 Authorization: Bearer {{admin_token}}
 
@@ -269,18 +256,29 @@ Content-Type: application/json
   "is_active": true
 }
 
+### Admin Create Product (Duplicate title -> expect 409)
+POST {{base_url}}/admin/products
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "title": "Gaming Laptop Pro",
+  "slug": "gaming-laptop-pro-2",
+  "price": 1399.99,
+  "stock": 10
+}
+
 ### Admin Get Product
 GET {{base_url}}/admin/products/1
 Authorization: Bearer {{admin_token}}
 
-### Admin Update Product
+### Admin Update Product (Duplicate title -> expect 409)
 PATCH {{base_url}}/admin/products/1
 Authorization: Bearer {{admin_token}}
 Content-Type: application/json
 
 {
-  "stock": 30,
-  "price": 1199.99
+  "title": "Gaming Laptop Pro"
 }
 
 ### Admin Delete Product
@@ -323,7 +321,7 @@ Authorization: Bearer {{admin_token}}
 PATCH {{base_url}}/admin/orders/1?status_value=shipped
 Authorization: Bearer {{admin_token}}
 
-### Admin Delete Order (only pending/cancelled)
+### Admin Delete Order (only pending/cancelled; expect 409 otherwise)
 DELETE {{base_url}}/admin/orders/5
 Authorization: Bearer {{admin_token}}
 
@@ -344,10 +342,6 @@ Authorization: Bearer {{admin_token}}
 ### --------------------------------------------------
 
 ### Upload Image (Admin) - Valid JPEG
-# Requirements:
-# - MIME type must be image/jpeg, image/png, or image/webp
-# - Maximum file size: 5MB
-# - Returns 201 with URL on success
 POST {{base_url}}/admin/upload
 Authorization: Bearer {{admin_token}}
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
@@ -384,8 +378,6 @@ Content-Type: image/webp
 ------WebKitFormBoundary7MA4YWxkTrZu0gW--
 
 ### Upload Image (Admin) - Invalid MIME Type (415 Error)
-# Expected response: 415 Unsupported Media Type
-# Error: "Unsupported file type. Allowed: image/jpeg, image/png, image/webp"
 POST {{base_url}}/admin/upload
 Authorization: Bearer {{admin_token}}
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
@@ -398,7 +390,6 @@ Content-Type: application/pdf
 ------WebKitFormBoundary7MA4YWxkTrZu0gW--
 
 ### Upload Image (Admin) - Invalid MIME Type GIF (415 Error)
-# Expected response: 415 Unsupported Media Type
 POST {{base_url}}/admin/upload
 Authorization: Bearer {{admin_token}}
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
@@ -411,9 +402,7 @@ Content-Type: image/gif
 ------WebKitFormBoundary7MA4YWxkTrZu0gW--
 
 ### Upload Image (Admin) - File Too Large (413 Error)
-# Expected response: 413 Request Entity Too Large
-# Error: "File too large. Maximum size: 5.0MB"
-# Note: Replace with an actual file larger than 5MB for testing
+# Replace with >5MB file to test
 POST {{base_url}}/admin/upload
 Authorization: Bearer {{admin_token}}
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW

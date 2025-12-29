@@ -237,7 +237,3 @@ class Message(Base):
 
     def __repr__(self) -> str:
         return f"<Message id={self.id} from={self.email}>"
-
-
-Index("ix_cart_items_cart_id_product_id", CartItem.cart_id, CartItem.product_id, unique=True)
-Index("ix_wishlist_items_wishlist_id_product_id", WishlistItem.wishlist_id, WishlistItem.product_id, unique=True)
