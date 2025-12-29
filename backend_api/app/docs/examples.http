@@ -186,19 +186,11 @@ Content-Type: application/json
 }
 
 ### --------------------------------------------------
-### Admin Authentication
+### Admin Authentication & Self-Management
 ### --------------------------------------------------
 
-### Admin Login (use existing admin)
-POST {{base_url}}/auth/admin/login
-Content-Type: application/json
-
-{
-  "username": "admin",
-  "password": "admin123"
-}
-
 ### Admin Register (create new admin)
+# Note: In production, this may require existing admin authentication
 POST {{base_url}}/admin/auth/register
 Content-Type: application/json
 
@@ -207,7 +199,16 @@ Content-Type: application/json
   "password": "SecurePass123!"
 }
 
-### Admin Login (new endpoint)
+### Admin Login
+POST {{base_url}}/admin/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin123"
+}
+
+### Admin Login (with newly registered admin)
 POST {{base_url}}/admin/auth/login
 Content-Type: application/json
 
@@ -216,20 +217,23 @@ Content-Type: application/json
   "password": "SecurePass123!"
 }
 
-### Get Admin Profile
+### Get Current Admin Profile
+# Requires: Admin Bearer token
 GET {{base_url}}/admin/me
 Authorization: Bearer {{admin_token}}
 
-### Update Admin Profile
+### Update Current Admin Profile
+# Allows updating username (must be unique)
 PUT {{base_url}}/admin/me
 Authorization: Bearer {{admin_token}}
 Content-Type: application/json
 
 {
-  "username": "newadminname"
+  "username": "admin_updated"
 }
 
-### List All Admins
+### List All Admin Users
+# Returns all admin accounts in the system
 GET {{base_url}}/admin/admins
 Authorization: Bearer {{admin_token}}
 
